@@ -1,35 +1,29 @@
 package ken_sample_golang
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
-type Cart struct{}
-
+type Cart struct{
+	shippingFeeMap map[string]CalcShippingFeeFunc
+}
+func NewCart() *Cart {
+	m := map[string]CalcShippingFeeFunc{
+		"ups": 			UPS,
+		"fedex":		FedEx,
+		"post office":	Post,
+	}
+	return &Cart{shippingFeeMap: m}
+}
 var (
 	ErrShipperNotExist = errors.New("shipper not exist")
 )
-
-func (c Cart) ShippingFee(shipper string, length, width, height, weight float64) (float64, error) {
-	switch shipper {
-	case "UPS":
-		if weight > 20 {
-			return 500, nil
-		}
-		return 100 + weight*10, nil
-	case "FedEx":
-		size := length * width * height
-		if length > 100 || width > 100 || height > 100 {
-			return size*0.00002*1100 + 500, nil
-		}
-		return size * 0.00002 * 1200, nil
-	case "Post office":
-		feeByWeight := 80 + weight*10
-		size := length * width * height
-		feeBySize := size * 0.00002 * 1100
-		if feeByWeight < feeBySize {
-			return feeByWeight, nil
-		}
-		return feeBySize, nil
-	default:
-		return -1, ErrShipperNotExist
+type CalcShippingFeeFunc func (*Product) (float64, error) 
+func (c Cart) ShippingFee(shipper string, p *Product) (float64, error) {
+	if calcFee, ok := c.shippingFeeMap[strings.ToLower(shipper)]; ok {
+		return calcFee(p)
 	}
+	
+	return -1, ErrShipperNotExist
 }
